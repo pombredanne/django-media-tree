@@ -1,15 +1,21 @@
+from media_tree import settings as app_settings
 from django.conf import settings
 from django.utils.importlib import import_module
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import get_storage_class
+from django.utils.html import conditional_escape
 import re
 
 
-def get_media_storage():
-    klass = get_storage_class()
-    return klass()
-    
+RE_SPLITEXT = re.compile('^(\.*.*?)((\.[^\.]+)*|\.)$')
 
+
+def get_media_storage():
+    klass = get_storage_class(import_path=app_settings.MEDIA_TREE_STORAGE)
+    return klass()
+ 
+    
+# TODO: This function should probably cache all imported modules
 def get_module_attr(path):
     i = path.rfind('.')
     module_name, attr_name = path[:i], path[i+1:]
@@ -39,22 +45,9 @@ def autodiscover_media_extensions():
 
     for app in settings.INSTALLED_APPS:
         mod = import_module(app)
-        # Attempt to import the app's admin module.
         try:
-            #before_import_registry = copy.copy(site._registry)
             import_module('%s.media_extension' % app)
         except:
-            # Reset the model registry to the state before the last import as
-            # this import will have to reoccur on the next request and this
-            # could raise NotRegistered and AlreadyRegistered exceptions
-            # (see #8245).
-            
-            # TODO: what!?
-            #site._registry = before_import_registry
-
-            # Decide whether to bubble up this error. If the app just
-            # doesn't have an admin module, we can ignore the error
-            # attempting to import it, otherwise we want it to bubble up.
             if module_has_submodule(mod, 'media_extension'):
                 raise
 
@@ -85,26 +78,32 @@ def multi_splitext(basename):
         multi_splitext('.foo.bar.')    # => ['.foo.bar', '.', '.']
 
     """
-    groups = list(re.compile('^(\.*.*?)((\.[^\.]+)*|\.)$').match(basename).groups())
+    groups = list(RE_SPLITEXT.match(basename).groups())
     if not groups[2]:
         groups[2] = groups[1]
     return groups
 
 
-def join_phrases(text, new_text, prepend=', ', append='', compare_text=None, else_prepend='', else_append='', if_empty=False):
-    if new_text != '' or if_empty:
-        if compare_text == None:
-            compare_text = text
-        if compare_text != '':
-            text += prepend
-        else:
-            text += else_prepend
-        text += new_text
-        if compare_text != '':
-            text += append
-        else:
-            text += else_append
-    return text
+def join_formatted(text, new_text, glue_format_if_true = u'%s%s', glue_format_if_false = u'%s%s', condition=None, format = u'%s', escape=False):
+    """
+    Joins two strings, optionally escaping the second, and using one of two
+    string formats for glueing them together, depending on whether a condition
+    is True or False.
+    
+    This function is a shorthand for complicated code blocks when you want to
+    format some strings and link them together. A typical use case might be:
+    Wrap string B with <strong> tags, but only if it is not empty, and join it
+    with A with a comma in between, but only if A is not empty, etc. 
+    """
+    if condition is None:
+        condition = text and new_text
+    add_text = new_text
+    if escape:
+        add_text = conditional_escape(add_text)
+    if add_text:
+        add_text = format % add_text
+    glue_format = glue_format_if_true if condition else glue_format_if_false
+    return glue_format % (text, add_text)
 
 
 # TODO: Factor out to image extension
@@ -114,3 +113,4 @@ def widthratio(value, max_value, max_width):
     """
     ratio = float(value) / float(max_value)
     return int(round(ratio * max_width))
+

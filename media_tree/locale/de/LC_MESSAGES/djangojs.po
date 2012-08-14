@@ -3,12 +3,11 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-10-25 15:49+0200\n"
+"POT-Creation-Date: 2011-09-28 13:43-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,53 +16,61 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
-#: media/media_tree/js/admin_enhancements.js:5
+#: static/media_tree/js/admin_enhancements.js:6
 msgid "Name"
 msgstr "Name"
 
-#: media/media_tree/js/admin_enhancements.js:5
+#: static/media_tree/js/admin_enhancements.js:6
 msgid "Size"
 msgstr "Grösse"
 
-#: media/media_tree/js/admin_enhancements.js:32
+#: static/media_tree/js/admin_enhancements.js:39
 msgid "New folder"
 msgstr "Neuer Ordner"
 
-#: media/media_tree/js/admin_enhancements.js:33
+#: static/media_tree/js/admin_enhancements.js:40
 msgid "Save"
 msgstr "Speichern"
 
-#: media/media_tree/js/jquery.swfupload_manager.js:78
-msgid "queued"
-msgstr "warten"
+#: static/media_tree/js/admin_enhancements.js:198
+#, perl-format
+msgid "%i media object"
+msgid_plural "%i media objects"
+msgstr[0] "%i Medienobjekt"
+msgstr[1] "%i Medienobjekte"
 
-#: media/media_tree/js/jquery.swfupload_manager.js:113
+#: static/media_tree/js/jquery.swfupload_manager.js:84
+#, perl-format
+msgid "uploading... (%i in queue)"
+msgstr "Upload… (%i in Warteschlange)"
+
+#: static/media_tree/js/jquery.swfupload_manager.js:85
+#, perl-format
+msgid "%i file in queue."
+msgid_plural "%i files in queue."
+msgstr[0] "%i Datei in Warteschlange."
+msgstr[1] "%i Dateien in Warteschlange."
+
+#: static/media_tree/js/jquery.swfupload_manager.js:86
+msgid "Please do not close this window until upload is complete."
+msgstr ""
+"Bitte dieses Fenster nicht schliessen, bevor der Upload abgeschlossen ist."
+
+#: static/media_tree/js/jquery.swfupload_manager.js:118
 msgid "Upload error"
 msgstr "Upload-Fehler"
 
-#: media/media_tree/js/jquery.swfupload_manager.js:220
+#: static/media_tree/js/jquery.swfupload_manager.js:225
 msgid "loading..."
 msgstr "laden…"
 
-#: media/media_tree/js/jquery.swfupload_manager.js:232
+#: static/media_tree/js/jquery.swfupload_manager.js:235
 #, perl-format
-msgid "%i file was added successfully."
-msgid_plural "%i files were added successfully."
-msgstr[0] "%i Datei wurde erfolgreich hinzugefügt."
-msgstr[1] "%i Dateien wurden erfolgreich hinzugefügt."
+msgid "Successfully added %i file."
+msgid_plural "Successfully added %i files."
+msgstr[0] "Erfolgreich %i Datei hinzugefügt."
+msgstr[1] "Erfolgreich %i Dateien hinzugefügt."
 
-#: media/media_tree/js/jquery.swfupload_manager.js:240
+#: static/media_tree/js/jquery.swfupload_manager.js:243
 msgid "There were errors during upload."
 msgstr "Beim Upload sind Fehler aufgetreten."
-
-#~ msgid "uploading... (%i in queue)"
-#~ msgstr "Upload… (%i in Warteschlange)"
-
-#~ msgid "%i file in queue."
-#~ msgid_plural "%i files in queue."
-#~ msgstr[0] "%i Datei in Warteschlange."
-#~ msgstr[1] "%i Dateien in Warteschlange."
-
-#~ msgid "Please do not close this window until upload is complete."
-#~ msgstr ""
-#~ "Bitte dieses Fenster nicht schliessen, bevor der Upload abgeschlossen ist."

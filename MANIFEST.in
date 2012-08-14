@@ -1,0 +1,14 @@
+include AUTHORS
+include LICENSE
+include README.rst
+include CHANGELOG.txt
+recursive-include media_tree/locale *
+recursive-include media_tree/static *
+recursive-include media_tree/contrib *
+recursive-include media_tree/templates *
+include demo_project/demo_project.sqlite3
+recursive-include demo_project/media *
+recursive-include demo_project/static *
+recursive-include demo_project/templates *
+recursive-include docs *
+recursive-exclude * *.pyc

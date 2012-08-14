@@ -5,16 +5,19 @@ library as follows::
 
     {% load media_tree_thumbnail %}
 
-Most of the code of this module is an almost identical copy of easy_thumbnails' 
-template tag, modified to work with ``FileNode`` sources and the configured 
-``MEDIA_BACKEND``. Hence, the :func:`thumbnail` tag is compatible to that of
-easy_thumbnails, but it will work with any thumbnail-generating application if 
-you provide an appropriate ``MediaBackend`` class.
+.. Note::
+   Most of the code of this module is an almost identical copy of
+   easy_thumbnails' template tag, modified to work with ``FileNode`` sources and
+   the configured ``MEDIA_BACKEND``. Hence, the :func:`thumbnail` tag is
+   compatible to that of easy_thumbnails, but it will work with any
+   thumbnail-generating application if you provide an appropriate
+   ``MediaBackend`` class.
 """
 
-from media_tree import app_settings
+from media_tree import settings as app_settings
 from media_tree.models import FileNode
 from media_tree.media_backends import get_media_backend
+from media_tree import media_types
 from django.conf import settings
 from django import template
 from django.template import Library, Node, VariableDoesNotExist, \
@@ -23,9 +26,10 @@ from django.utils.html import escape
 import re
 
 
-THUMBNAIL_SIZES = app_settings.merge('MEDIA_TREE_THUMBNAIL_SIZES')
+THUMBNAIL_SIZES = app_settings.MEDIA_TREE_THUMBNAIL_SIZES
 RE_SIZE = re.compile(r'(\d+)x(\d+)$')
-MEDIA_BACKEND = get_media_backend()
+MEDIA_BACKEND = get_media_backend(fail_silently=False, handles_media_types=(
+    media_types.SUPPORTED_IMAGE,))
 VALID_OPTIONS = MEDIA_BACKEND.get_valid_thumbnail_options() if MEDIA_BACKEND else {}
 register = template.Library()
 
@@ -163,11 +167,14 @@ class ThumbnailNode(Node):
             if m:
                 opts['size'] = (int(m.group(1)), int(m.group(2)))
             else:
-                if raise_errors:
-                    raise TemplateSyntaxError("Variable '%s' was resolved "
-                            "but '%s' is not a valid size." %
-                            (self.size_var, size))
-                return self.bail_out(context)
+                if THUMBNAIL_SIZES.has_key(size):
+                    opts['size'] = THUMBNAIL_SIZES[size]
+                else:
+                    if raise_errors:
+                        raise TemplateSyntaxError("Variable '%s' was resolved "
+                                "but '%s' is not a valid size." %
+                                (self.size_var, size))
+                    return self.bail_out(context)
         try:
             thumbnail = MEDIA_BACKEND.get_thumbnail(source, opts)
         except:

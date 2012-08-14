@@ -25,7 +25,7 @@ class FileNodeActionsForm(forms.Form):
         selected_nodes_pk = []
         if queryset:
             for node in queryset:
-                opts = node._meta
+                opts = node._mptt_meta
                 selected_nodes_pk.append(node.pk)
                 valid_targets = valid_targets.exclude(**{
                     opts.tree_id_attr: getattr(node, opts.tree_id_attr),
@@ -53,7 +53,15 @@ class FileNodeActionsForm(forms.Form):
                     self.confirmed_data[key] = self.cleaned_data[key]
         return self.cleaned_data
 
-class MoveSelectedForm(FileNodeActionsForm):
+
+class FileNodeActionsWithUserForm(FileNodeActionsForm):
+
+    def __init__(self, queryset, user, *args, **kwargs):
+        super(FileNodeActionsWithUserForm, self).__init__(queryset, *args, **kwargs)
+        self.user = user
+
+
+class MoveSelectedForm(FileNodeActionsWithUserForm):
 
     action_name = 'move_selected'
     enable_target_node_field = True
@@ -63,10 +71,12 @@ class MoveSelectedForm(FileNodeActionsForm):
             # Reload object because tree attributes may be out of date 
             node = node.__class__.objects.get(pk=node.pk)
             descendant_count = node.get_descendants().count()
-            node.parent = target
-            node.save()
             
-            self.success_count += 1 + descendant_count
+            if node.parent != target:
+                node.parent = target
+                node.attach_user(self.user, change=True)
+                node.save()
+                self.success_count += 1 + descendant_count
             return node
         except InvalidMove, e:
             self.errors[NON_FIELD_ERRORS] = ErrorList(e)
@@ -87,7 +97,7 @@ class MoveSelectedForm(FileNodeActionsForm):
             self.move_node(node, self.cleaned_data['target_node'])
 
 
-class CopySelectedForm(FileNodeActionsForm):
+class CopySelectedForm(FileNodeActionsWithUserForm):
 
     action_name = 'copy_selected'
     enable_target_node_field = True
@@ -114,6 +124,7 @@ class CopySelectedForm(FileNodeActionsForm):
         new_node = clone_node(node)
         make_uploaded_files(new_node, node)
         new_node.parent = target
+        new_node.attach_user(self.user, change=True)
         new_node.save()
         if new_node.node_type == FileNode.FOLDER:
             self.copy_nodes_rec(node.get_children(), new_node)
@@ -129,7 +140,7 @@ class CopySelectedForm(FileNodeActionsForm):
         self.copy_nodes_rec(self.get_selected_nodes(), self.cleaned_data['target_node'])
 
 
-class ChangeMetadataForSelectedForm(FileNodeActionsForm):
+class ChangeMetadataForSelectedForm(FileNodeActionsWithUserForm):
 
     action_name = 'change_metadata_for_selected'
     enable_target_node_field = False
@@ -158,6 +169,7 @@ class ChangeMetadataForSelectedForm(FileNodeActionsForm):
             if getattr(node, key) != metadata[key]:
                 setattr(node, key, metadata[key])
                 changed = True
+        node.attach_user(self.user, change=True)
         node.save()
         return changed
 
@@ -173,33 +185,42 @@ class ChangeMetadataForSelectedForm(FileNodeActionsForm):
         self.save_nodes_rec(self.get_selected_nodes())
 
 
-class OrphanedFilesForm(FileNodeActionsForm):
+class StorageFilesForm(FileNodeActionsForm):
 
     def __init__(self, queryset, orphaned_files_choices, *args, **kwargs):
         self.success_files = []
         self.error_files = []
-        super(OrphanedFilesForm, self).__init__(queryset, *args, **kwargs)
-        self.fields['orphaned_selected'] = forms.MultipleChoiceField(label=self.orphaned_selected_label, choices=orphaned_files_choices, widget=forms.widgets.CheckboxSelectMultiple)
+        super(StorageFilesForm, self).__init__(queryset, *args, **kwargs)
+        self.fields['selected_files'] = forms.MultipleChoiceField(label=self.selected_files_label, choices=orphaned_files_choices, widget=forms.widgets.CheckboxSelectMultiple)
 
 
-class DeleteOrphanedFilesForm(OrphanedFilesForm):
-
-    action_name = 'delete_orphaned_files'
-    orphaned_selected_label = _('The following files exist in storage, but are not found in the database')
+class DeleteStorageFilesForm(StorageFilesForm):
 
     def __init__(self, *args, **kwargs):
-        super(DeleteOrphanedFilesForm, self).__init__(*args, **kwargs)
-        self.fields['confirm'] = confirm = forms.BooleanField(label=_('Yes, I am sure that I want to delete the selected files from disk:'))  
+        super(DeleteStorageFilesForm, self).__init__(*args, **kwargs)
+        self.fields['confirm'] = confirm = forms.BooleanField(label=_('Yes, I am sure that I want to delete the selected files from storage:'))  
 
     def save(self):
         """
         Deletes the selected files from storage
         """
         storage = get_media_storage()
-        for storage_name in self.cleaned_data['orphaned_selected']:
+        for storage_name in self.cleaned_data['selected_files']:
             full_path = storage.path(storage_name)
             try:
                 storage.delete(storage_name)
                 self.success_files.append(full_path)
             except OSError:
                 self.error_files.append(full_path)
+
+
+class DeleteOrphanedFilesForm(DeleteStorageFilesForm):
+
+    action_name = 'delete_orphaned_files'
+    selected_files_label = _('The following files exist in storage, but are not found in the database')
+
+
+class DeleteCacheFilesForm(DeleteStorageFilesForm):
+
+    action_name = 'clear_cache'
+    selected_files_label = _('Cache files')

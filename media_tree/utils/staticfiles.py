@@ -1,13 +1,15 @@
-from media_tree import app_settings
+from media_tree import settings as app_settings
 from media_tree.utils import get_module_attr
 from django.conf import settings
 from django.db.models.fields.files import FieldFile
 from django.core.files.storage import FileSystemStorage
 from django.core.files.base import File
+from django.utils.translation import ugettext_lazy as _
+from PIL import Image
 import os
 
 
-ICON_DIRS = app_settings.get('MEDIA_TREE_ICON_DIRS')
+ICON_DIRS = app_settings.MEDIA_TREE_ICON_DIRS
 
 
 def get_static_storage():
@@ -21,6 +23,8 @@ def get_static_storage():
 
 
 STATIC_STORAGE = get_static_storage()
+BUFFERED_ICON_SIZES = {}
+EXISTING_PATHS = {}
 
 
 class StaticFile(FieldFile):
@@ -34,23 +38,46 @@ class StaticFile(FieldFile):
         self.instance = instance
         self.storage = STATIC_STORAGE
         self.field = self
-        self.is_icon = True
 
     def save(self, *args, **kwargs):
-        raise NotImplementedError('Icon files are read-only')
+        raise NotImplementedError('Static files are read-only')
 
     def delete(self, *args, **kwargs):
-        raise NotImplementedError('Icon files are read-only')
+        raise NotImplementedError('Static files are read-only')
 
     def __unicode__(self):
         return self.instance.__unicode__()
-        #return self.instance.get_media_type_name()
 
     def alt(self):
-        return self.instance.alt()
+        return self.instance.alt
 
 
-class StaticFileFinder:
+class StaticIconFile(StaticFile):
+    """
+    A wrapper for static icons that is compatible to the FieldFile class, i.e.
+    you can use instances of this class in templates just like you use the value
+    of FileFields (e.g. `{{ my_static_file.url }}`) 
+    """
+    def __init__(self, *args, **kwargs):
+        super(StaticIconFile, self).__init__(*args, **kwargs)
+        self.is_icon = True
+        if not self.path in BUFFERED_ICON_SIZES:
+            try:
+                im = Image.open(self.path)
+                BUFFERED_ICON_SIZES[self.path] = im.size
+            except:
+                pass
+        self.width, self.height = BUFFERED_ICON_SIZES.get(self.path, (None, None))
+            
+    def alt(self):
+        if not self.instance:
+            return ''
+        if not self.instance.is_folder():
+            return self.instance.extension
+        return _('folder')
+
+
+class StaticPathFinder:
 
     @staticmethod
     def find(names, dirs, file_ext):
@@ -59,7 +86,7 @@ class StaticFileFinder:
         a file named like one of the names and file ext passed, and returns the
         storage path to the first file it encounters.
         
-        Using this method makes it possible to override static files (such as 
+        Usage this method makes it possible to override static files (such as 
         icon sets) in a similar way like templates in different locations can
         override others that have the same file name.
         """
@@ -68,7 +95,10 @@ class StaticFileFinder:
         for dir_name in dirs:
             for name in names:
                 path = os.path.join(dir_name, name + file_ext)
-                if STATIC_STORAGE.exists(path):
+                if not path in EXISTING_PATHS:
+                    # check on file system, then cache
+                    EXISTING_PATHS[path] = STATIC_STORAGE.exists(path)
+                if EXISTING_PATHS[path]:
                     return path
     
     
@@ -89,9 +119,9 @@ class MimetypeStaticIconFileFinder:
                 names.append(attr)
         if default_name:
             names.append(default_name)
-        icon_path = StaticFileFinder.find(names, dirs, file_ext)
+        icon_path = StaticPathFinder.find(names, dirs, file_ext)
         if icon_path:
-            return StaticFile(file_node, icon_path)
+            return StaticIconFile(file_node, icon_path)
 
 
 # TODO: Find a better way of caching ICON_FINDERS (and what about threads and different settings files defining different icon finders?) 
